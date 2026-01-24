@@ -2,8 +2,8 @@ name: "anniversary replay"
 
 on:
   schedule:
-    # Runs every 2-3 hours (8 times per day) for ~10 posts per day
-    - cron: "0 0,3,6,9,12,15,18,21 * * *"
+    # Runs 15 times every 24 hours (approximately every 1.6 hours)
+    - cron: "0 0,2,3,5,6,8,10,11,13,14,16,17,19,20,22 * * *"
   workflow_dispatch:
 
 jobs:
