@@ -50,6 +50,6 @@ jobs:
         with:
           commit_message: "anniversary: frame iterator update"
           repository: .
-          file_pattern: fb/replay_frameiterator
+          file_pattern: fb/anniversaryiterator
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
