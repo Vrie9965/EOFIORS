@@ -1,0 +1,53 @@
+name: "anniversary replay"
+
+on:
+  schedule:
+    # Runs every 2-3 hours (8 times per day) for ~10 posts per day
+    - cron: "0 0,3,6,9,12,15,18,21 * * *"
+  workflow_dispatch:
+
+jobs:
+  security_check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "ownership check"
+        env:
+          trig_actor: ${{ github.triggering_actor }}
+          repo_ownr: ${{ github.repository_owner }}
+        run: |
+          case "${trig_actor}" in
+            "${repo_ownr}"|github-actions*) : ;;
+            *) printf '%s\n'"Runner prevented to run because the script is executed by an untrusted user \"${trig_actor}\". (Only owner can execute, for security)" >&2 ; exit 1 ;;
+          esac
+
+  anniversary_replay:
+    needs: security_check
+    runs-on: ubuntu-latest
+    env:
+      FRMENV_FBTOKEN: ${{ secrets.TOK_FB }}
+      FRMENV_API_ORIGIN: "https://graph.facebook.com"
+      FRMENV_FBAPI_VER: "v20.0"
+
+    steps:
+      - name: "checkout repo"
+        uses: actions/checkout@v4
+
+      - name: "check token"
+        run: |
+          if [[ -z "$FRMENV_FBTOKEN" ]]; then
+            echo "Facebook token not found in secrets (TOK_FB)"
+            exit 1
+          fi
+          echo "Token loaded: ${FRMENV_FBTOKEN:0:4}****"
+
+      - name: "run anniversary replay"
+        run: bash ./scripts/anniversary_replay.sh
+
+      - name: "commit frame iterator"
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "anniversary: frame iterator update"
+          repository: .
+          file_pattern: fb/replay_frameiterator
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
