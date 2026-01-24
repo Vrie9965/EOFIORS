@@ -18,7 +18,13 @@ if [[ -f "${FRMENV_REPLAY_ITER_FILE}" ]]; then
 	CURRENT_FRAME="$(cat "${FRMENV_REPLAY_ITER_FILE}")"
 else
 	CURRENT_FRAME="${replay_start_frame}"
+	printf '%s' "${CURRENT_FRAME}" > "${FRMENV_REPLAY_ITER_FILE}"
 fi
+
+# Validate iterator
+{ [[ -z "$(<"${FRMENV_REPLAY_ITER_FILE}")" ]] || [[ "$(<"${FRMENV_REPLAY_ITER_FILE}")" -lt 1 ]] ;} && printf '%s' "1" > "${FRMENV_REPLAY_ITER_FILE}"
+
+CURRENT_FRAME="$(<"${FRMENV_REPLAY_ITER_FILE}")"
 
 # Find the log entry for current frame in the current episode
 # Search pattern: "Frame: X, Episode YY"
@@ -58,10 +64,10 @@ fi
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Shared: $frame_info $frame_url" | tee -a "${FRMENV_LOG_FILE}"
 
 # Increment frame counter for next execution
-((CURRENT_FRAME++))
+NEXT_FRAME="$((CURRENT_FRAME + 1))"
 
 # Save current frame position
-printf '%s' "${CURRENT_FRAME}" > "${FRMENV_REPLAY_ITER_FILE}"
+printf '%s' "${NEXT_FRAME}" > "${FRMENV_REPLAY_ITER_FILE}"
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Anniversary replay completed. Next frame: ${CURRENT_FRAME}" | tee -a "${FRMENV_LOG_FILE}"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Anniversary replay completed. Next frame: ${NEXT_FRAME}" | tee -a "${FRMENV_LOG_FILE}"
 exit 0
