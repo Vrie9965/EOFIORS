@@ -20,12 +20,12 @@ else
 	CURRENT_FRAME="${replay_start_frame}"
 fi
 
-# Find the log entry for current replay_episode and CURRENT_FRAME
-replay_line=$(grep "Episode ${replay_episode}.*Frame: ${CURRENT_FRAME}" "$LOG_FILE" | head -n 1)
+# Find the log entry for current frame in the current episode
+# Search pattern: "Frame: X, Episode YY"
+replay_line=$(grep "Frame: ${CURRENT_FRAME}, Episode ${replay_episode}" "$LOG_FILE" | head -n 1)
 
 if [[ -z "$replay_line" ]]; then
-	echo "[ERROR] No log entry found for Season ${replay_season}, Episode ${replay_episode}, Frame ${CURRENT_FRAME}"
-	echo "[INFO] Anniversary replay completed. All frames posted."
+	echo "[INFO] No more frames found for Episode ${replay_episode}. Anniversary replay completed."
 	exit 0
 fi
 
