@@ -1,31 +1,17 @@
 #!/bin/bash
-# */
-# Anniversary Mode: Replay episodes in order starting from episode 1
-# Reuses existing posting and helper functions from the project
-# /*
+# File: scripts/anniversary_replay.sh
+# Anniversary Mode: Replay episodes in order by resharing from log.txt
 
-# Import needed scripts
-. config.anniversary.conf
-. scripts/helpers.sh
-. scripts/post.sh
+: "${FRMENV_FBTOKEN:=${TOK_FB:-}}"
 
-# Token is provided via environment variable from GitHub Actions
-: "${FRMENV_FBTOKEN:=}"
-
-# Check if token is provided
-if [[ -z "${FRMENV_FBTOKEN}" ]]; then
-	printf '%s\n' "[FATAL ERROR] Facebook token not provided." | tee -a "${FRMENV_LOG_FILE}"
-	exit 1
+if [[ -z "$FRMENV_FBTOKEN" ]]; then
+  echo "[FATAL ERROR] FRMENV_FBTOKEN is empty!"
+  exit 1
 fi
 
-# Check all the dependencies if installed
-if ! helper_depcheck curl bc ; then
-	printf '%s\n' "[FATAL ERROR] Some dependencies are missing." | tee -a "${FRMENV_LOG_FILE}"
-	exit 1
-fi
+. "$(dirname "$0")/../config.anniversary.conf"
 
-# Validate required variables
-helper_varchecker 'anniversary mode config' "${replay_episode}" "${replay_season}" "${replay_message}" || helper_statfailed 1
+LOG_FILE="$(dirname "$0")/../fb/log.txt"
 
 # Initialize or read frame iterator
 if [[ -f "${FRMENV_REPLAY_ITER_FILE}" ]]; then
@@ -34,32 +20,48 @@ else
 	CURRENT_FRAME="${replay_start_frame}"
 fi
 
-# Prepare message with current frame info
-TEMP_MESSAGE="$(sed -E 's_\{replay_season\}_'"${replay_season}"'_g;s_\{replay_episode\}_'"${replay_episode}"'_g;s_\{replay_frame\}_'"${CURRENT_FRAME}"'_g;s_\{\\n\}_\n_g' <<< "${replay_message}")"
+# Find the log entry for current replay_episode and CURRENT_FRAME
+replay_line=$(grep "Episode ${replay_episode}.*Frame: ${CURRENT_FRAME}" "$LOG_FILE" | head -n 1)
 
-# Check if frame file exists
-if [[ ! -f "${FRMENV_FRAME_LOCATION}/frame_${CURRENT_FRAME}.jpg" ]]; then
-	printf '%s\n' "[ERROR] Frame file not found: frame_${CURRENT_FRAME}.jpg" | tee -a "${FRMENV_LOG_FILE}"
-	printf '%s\n' "[INFO] Anniversary replay completed. All frames posted." | tee -a "${FRMENV_LOG_FILE}"
+if [[ -z "$replay_line" ]]; then
+	echo "[ERROR] No log entry found for Season ${replay_season}, Episode ${replay_episode}, Frame ${CURRENT_FRAME}"
+	echo "[INFO] Anniversary replay completed. All frames posted."
 	exit 0
 fi
 
-# Prepare for posting with the message variable
-message="${TEMP_MESSAGE}"
+# Extract frame info and URL from log line
+frame_info=$(echo "$replay_line" | awk -F 'https' '{print $1}' | sed 's/\[√\] *//')
+frame_url=$(echo "$replay_line" | awk '{print $NF}')
 
-# Post the frame to Facebook
-if post_fp "${CURRENT_FRAME}"; then
-	printf '%s\n' "[$(date '+%Y-%m-%d %H:%M:%S')] Posted: Season ${replay_season}, Episode ${replay_episode}, Frame ${CURRENT_FRAME}" | tee -a "${FRMENV_LOG_FILE}"
-else
-	printf '%s\n' "[ERROR] Failed to post frame ${CURRENT_FRAME}" | tee -a "${FRMENV_LOG_FILE}"
-	helper_statfailed 1 "${replay_episode}" "${CURRENT_FRAME}"
+# Prepare message using simple variable substitution
+message="Season ${replay_season}, Episode ${replay_episode}, Frame ${CURRENT_FRAME} - Page 1 year old replay."
+
+echo "DEBUG: Posting to page URL: ${FRMENV_API_ORIGIN}/${FRMENV_FBAPI_VER}/194597373745170/feed?access_token=${FRMENV_FBTOKEN}"
+echo "DEBUG: Replaying Season ${replay_season}, Episode ${replay_episode}, Frame ${CURRENT_FRAME}"
+
+response=$(
+  curl -s -w "\n%{http_code}" -X POST \
+    -F "message=${message}" \
+    -F "link=${frame_url}" \
+    "${FRMENV_API_ORIGIN}/${FRMENV_FBAPI_VER}/194597373745170/feed?access_token=${FRMENV_FBTOKEN}"
+)
+
+body=$(echo "$response" | head -n 1)
+status=$(echo "$response" | tail -n 1)
+
+if [[ "$status" != "200" ]]; then
+  echo "[ERROR] Failed to share $frame_url"
+  echo "Facebook response: $body"
+  exit 1
 fi
 
-# Increment frame counter
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Shared: $frame_info $frame_url" | tee -a "${FRMENV_LOG_FILE}"
+
+# Increment frame counter for next execution
 ((CURRENT_FRAME++))
 
-# Save current frame position for next execution
+# Save current frame position
 printf '%s' "${CURRENT_FRAME}" > "${FRMENV_REPLAY_ITER_FILE}"
 
-printf '%s\n' "[$(date '+%Y-%m-%d %H:%M:%S')] Anniversary replay completed. Next frame: ${CURRENT_FRAME}" | tee -a "${FRMENV_LOG_FILE}"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Anniversary replay completed. Next frame: ${CURRENT_FRAME}" | tee -a "${FRMENV_LOG_FILE}"
 exit 0
