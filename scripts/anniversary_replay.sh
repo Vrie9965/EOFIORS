@@ -33,8 +33,8 @@ fi
 frame_info=$(echo "$replay_line" | awk -F 'https' '{print $1}' | sed 's/\[√\] *//')
 frame_url=$(echo "$replay_line" | awk '{print $NF}')
 
-# Prepare message using simple variable substitution
-message="Season ${replay_season}, Episode ${replay_episode}, Frame ${CURRENT_FRAME} - Page 1 year old replay."
+# Prepare message using config variable
+message="Season ${replay_season}, Episode ${replay_episode}, Frame ${CURRENT_FRAME} - ${replay_message}"
 
 echo "DEBUG: Posting to page URL: ${FRMENV_API_ORIGIN}/${FRMENV_FBAPI_VER}/194597373745170/feed?access_token=${FRMENV_FBTOKEN}"
 echo "DEBUG: Replaying Season ${replay_season}, Episode ${replay_episode}, Frame ${CURRENT_FRAME}"

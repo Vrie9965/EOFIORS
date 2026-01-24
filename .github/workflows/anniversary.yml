@@ -23,6 +23,8 @@ jobs:
   anniversary_replay:
     needs: security_check
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       FRMENV_FBTOKEN: ${{ secrets.TOK_FB }}
       FRMENV_API_ORIGIN: "https://graph.facebook.com"
