@@ -1,6 +1,5 @@
 #!/bin/bash
 # File: scripts/anniversary_replay.sh
-# Anniversary Mode: Replay episodes in order by resharing from log.txt
 
 : "${FRMENV_FBTOKEN:=${TOK_FB:-}}"
 
@@ -13,7 +12,7 @@ fi
 
 LOG_FILE="$(dirname "$0")/../fb/log.txt"
 
-# Initialize or read frame iterator
+# initialize/read iterator
 if [[ -f "${FRMENV_REPLAY_ITER_FILE}" ]]; then
 	CURRENT_FRAME="$(cat "${FRMENV_REPLAY_ITER_FILE}")"
 else
@@ -21,12 +20,11 @@ else
 	printf '%s' "${CURRENT_FRAME}" > "${FRMENV_REPLAY_ITER_FILE}"
 fi
 
-# Validate iterator
+# validate iterator
 { [[ -z "$(<"${FRMENV_REPLAY_ITER_FILE}")" ]] || [[ "$(<"${FRMENV_REPLAY_ITER_FILE}")" -lt 1 ]] ;} && printf '%s' "1" > "${FRMENV_REPLAY_ITER_FILE}"
 
 CURRENT_FRAME="$(<"${FRMENV_REPLAY_ITER_FILE}")"
 
-# Find the log entry for current frame in the current episode
 # Search pattern: "Frame: X, Episode YY"
 replay_line=$(grep "Frame: ${CURRENT_FRAME}, Episode ${replay_episode}" "$LOG_FILE" | head -n 1)
 
@@ -35,11 +33,9 @@ if [[ -z "$replay_line" ]]; then
 	exit 0
 fi
 
-# Extract frame info and URL from log line
 frame_info=$(echo "$replay_line" | awk -F 'https' '{print $1}' | sed 's/\[√\] *//')
 frame_url=$(echo "$replay_line" | awk '{print $NF}')
 
-# Prepare message using config variable
 message="Season ${replay_season}, Episode ${replay_episode}, Frame ${CURRENT_FRAME} - ${replay_message}"
 
 echo "DEBUG: Posting to page URL: ${FRMENV_API_ORIGIN}/${FRMENV_FBAPI_VER}/194597373745170/feed?access_token=${FRMENV_FBTOKEN}"
@@ -63,10 +59,10 @@ fi
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Shared: $frame_info $frame_url" | tee -a "${FRMENV_LOG_FILE}"
 
-# Increment frame counter for next execution
+# increment
 NEXT_FRAME="$((CURRENT_FRAME + 1))"
 
-# Save current frame position
+# save
 printf '%s' "${NEXT_FRAME}" > "${FRMENV_REPLAY_ITER_FILE}"
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Anniversary replay completed. Next frame: ${NEXT_FRAME}" | tee -a "${FRMENV_LOG_FILE}"
